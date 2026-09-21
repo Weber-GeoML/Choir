@@ -1,0 +1,28 @@
+# Project version pins — read by `choir claim` at workspace setup.
+#
+# Use this file to declare versions the project expects for contributor-
+# side tooling that lives outside the project repo. Lean itself is
+# pinned by `lean-toolchain` (elan reads it automatically) — pins.toml
+# is for everything else.
+#
+# Pin checks are advisory: a mismatch warns the contributor but doesn't
+# block the claim. The verify pipeline catches actual breakage at
+# PR-build time. See `client/pins.py`.
+
+[pins]
+# lean4-skills is the base Lean tooling layer that contributors install
+# once on their machine. Uncomment + set when the project picks a
+# specific version it has tested against:
+# lean4_skills = "v0.2.3"
+
+[skill_pack]
+# Version of this project's own skill pack (./skills/). Reserved for
+# future cross-workspace consistency checks; not yet enforced.
+# version = "v1.0"
+
+[tools]
+# Mathlib search (LeanSearch / Loogle / Lean Finder) is recommended by
+# Choir default — contributors who haven't declared a search tool in
+# ~/.choir/config.json get a one-time reminder at `choir claim`. This is
+# advisory and never blocks. To opt this project out of the reminder:
+#   mathlib_search = "off"

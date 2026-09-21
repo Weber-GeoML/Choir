@@ -1,0 +1,62 @@
+name: reconcile
+
+# Daily orphan-lease detection. For each issue with `choir/claimed`,
+# check the heartbeat label age (or `updated_at` as fallback). If stale
+# beyond the threshold, comment, demote labels back to `choir/available`,
+# and unassign — making the task claimable again.
+#
+# See gate/reconcile/stale_claims.py for the decision logic.
+
+on:
+  schedule:
+    # 06:17 UTC daily — off-peak; the minute :17 reduces collision with
+    # other scheduled workflows that pick :00 or :30.
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+    inputs:
+      threshold_days:
+        description: 'Override staleness threshold in days (blank = use .choir/project.toml [reconcile].stale_after_days, default 7)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Set to "true" to preview without making changes'
+        required: false
+        default: 'false'
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install Python deps
+        run: uv sync --extra dev
+
+      - name: Run reconciliation
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          THRESHOLD_DAYS: ${{ inputs.threshold_days || '' }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+        run: |
+          set -euo pipefail
+          # No --threshold-days here: the CLI reads [reconcile].stale_after_days
+          # from the checked-out .choir/project.toml (cwd = repo root). A manual
+          # dispatch can still override by supplying threshold_days.
+          args=(--repo "$REPO")
+          if [ -n "$THRESHOLD_DAYS" ]; then
+            args+=(--threshold-days "$THRESHOLD_DAYS")
+          fi
+          if [ "$DRY_RUN" = "true" ]; then
+            args+=(--dry-run)
+          fi
+          uv run python -m gate.reconcile.cli "${args[@]}"

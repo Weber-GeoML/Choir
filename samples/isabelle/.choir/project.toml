@@ -1,0 +1,17 @@
+# Project-level settings. See docs/agents/ORCHESTRATOR.md and design note 12
+# (prover profiles). [project] prover is read gate-side (base SHA) and
+# worker-side (pinned commit) by gate/provers/select.py.
+
+# Prover selection — lean4 | isabelle | rocq. Absent = lean4 (default).
+[project]
+prover = "isabelle"
+
+[automation]
+# auto | approve | manual — who presses merge. The gate's deterministic
+# audits and branch protection apply at every level.
+merge = "auto"
+
+[reconcile]
+# Days a claim may go without a heartbeat before the daily reconcile
+# workflow reclaims it back to choir/available. Default 7.
+stale_after_days = 7

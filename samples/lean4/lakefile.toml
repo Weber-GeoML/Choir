@@ -1,0 +1,8 @@
+# Minimal Lake project used as Choir's demo target. No Mathlib dependency
+# in v0 — we want the verify workflow to run in under a minute on a
+# fresh runner. Mathlib comes back when caching is wired up properly.
+name = "lean4-sample"
+defaultTargets = ["SampleProject"]
+
+[[lean_lib]]
+name = "SampleProject"

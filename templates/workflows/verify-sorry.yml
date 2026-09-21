@@ -1,0 +1,59 @@
+name: verify-sorry
+
+# Phase 3 audit: fail PRs that increase the number of `sorry`s in any
+# changed .lean file. `lake build` treats sorry as a warning, so the
+# rebuild audit alone would merge sorry-shaped "proofs" — this check is
+# the explicit blocker. Closing sorries (the normal work product)
+# passes. See gate/verify/sorry_delta.py.
+#
+# Per-project policy via `.choir/verify.toml` `[audits.sorry_delta]`,
+# read from the BASE SHA (a PR can't loosen itself): `block` (default)
+# fails on net-new sorries; `report` lists them but passes — partial
+# progress merges only by orchestrator review decision.
+#
+# A `choir-reduction` block in the PR body holds the submission to the
+# reduction contract instead: a placeholder is permitted on an
+# obligation the block declares and never on the task's own target. The
+# target is read from the linked task's issue rather than from the
+# block, which is why this job needs `issues: read` — without it that
+# lookup 403s and the audit exits 2.
+#
+# Posts its own required status check: `verify-sorry / sorry-delta`.
+# Branch protection should require this alongside the other audits.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: choir-verify-sorry-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  sorry-delta:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install Python deps
+        run: uv sync --extra dev
+
+      - name: Run sorry-delta audit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          uv run python -m gate.verify.sorry_delta_cli \
+            --repo "${{ github.repository }}" \
+            --pr "${{ github.event.pull_request.number }}"

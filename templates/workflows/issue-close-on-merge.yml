@@ -1,0 +1,114 @@
+name: issue-close-on-merge
+
+# When a PR merges, identify which Choir issues it closes (via "Closes #N"
+# / "Fixes #N" / "Resolves #N" keywords in the PR body) and mark each:
+# - remove choir/claimed and choir/available
+# - add choir/done
+# - post a "merged in #PR" comment
+# - close the issue (GitHub may have already done this; we make sure)
+#
+# Then repin the siblings: any open *unclaimed* task whose target_file this
+# PR touched is still pinned to a tree that no longer has that text, so its
+# next worker would start from stale source. The merge knows which files it
+# touched, so the affected tasks fall out of the event — no history walk.
+# Claimed tasks are left alone deliberately (`orchestrator/repin.py`).
+
+# `pull_request_target`, not `pull_request`, and that is load-bearing under
+# spec D4 (open contribution). Every PR now arrives from a contributor's
+# fork, and a `pull_request` event from a fork is granted a READ-ONLY token
+# with no secrets — so this workflow, which needs `issues: write` to close
+# the task issue, could never do its job on any real submission. On
+# `pull_request_target` the event runs in the base repository's context and
+# gets the write token it needs.
+#
+# That trade is only safe because of the checkout below. `pull_request_target`
+# is the well-known foot-gun: it hands a write token to a workflow triggered
+# by an untrusted PR, so a workflow that checks out and *executes* the PR's
+# code is handing that token to the contributor. This one must never do
+# that — see the checkout step.
+on:
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  issues: write
+  pull-requests: read
+  contents: read
+
+jobs:
+  close:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      # NO `ref:` — deliberately. This checks out the BASE repository, so the
+      # `gate/` code that runs below is the project's own, never the PR's.
+      #
+      # Do not "fix" this by adding `ref: ${{ github.event.pull_request.head.sha }}`
+      # to make it match the other workflows: combined with the write token
+      # above, that would execute a contributor's code with permission to
+      # write to the repository. The only thing this workflow reads from the
+      # PR is `body`, which is metadata rather than code, and it is passed
+      # through an env var and a file rather than interpolated into a shell
+      # command.
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install Python deps
+        run: uv sync --extra dev
+
+      - name: Save PR body to a file
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          mkdir -p .close-tmp
+          printf '%s' "$BODY" > .close-tmp/body.txt
+
+      - name: Extract closing-issue numbers
+        run: |
+          uv run python -m gate.state.close_on_merge_cli \
+            --body-file .close-tmp/body.txt \
+            > .close-tmp/numbers.txt
+          echo "Issue numbers referenced by closing keywords:"
+          cat .close-tmp/numbers.txt || true
+
+      - name: Mark linked issues as done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Empty file is fine — the PR may not reference any issues.
+          while IFS= read -r num; do
+            [ -z "$num" ] && continue
+            echo "Marking issue #$num done..."
+            gh issue edit "$num" --repo "$REPO" \
+              --add-label "choir/done" || true
+            gh issue edit "$num" --repo "$REPO" \
+              --remove-label "choir/claimed" || true
+            gh issue edit "$num" --repo "$REPO" \
+              --remove-label "choir/available" || true
+            gh issue comment "$num" --repo "$REPO" \
+              --body "Merged in #${PR_NUMBER}." || true
+            # GitHub auto-closes on "Closes #N" already; this is idempotent.
+            gh issue close "$num" --repo "$REPO" --reason completed || true
+          done < .close-tmp/numbers.txt
+
+      - name: Repin unclaimed tasks on the files this PR touched
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          set -euo pipefail
+          gh pr view "$PR_NUMBER" --repo "$REPO" --json files \
+            --jq '.files[].path' > .close-tmp/files.txt
+          uv run python -m orchestrator.repin \
+            --repo "$REPO" \
+            --commit "$MERGE_SHA" \
+            --files-file .close-tmp/files.txt

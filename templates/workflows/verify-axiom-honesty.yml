@@ -1,0 +1,44 @@
+name: verify-axiom-honesty
+
+# Phase 3 audit: catch PRs that introduce new uses of axiom, unsafe,
+# partial, native_decide, or extern without explicit human review.
+# See gate/verify/axiom_honesty.py.
+#
+# Posts its own required status check: `verify-axiom-honesty / axiom-honesty`.
+# Branch protection should require this alongside the other audits.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: choir-verify-axiom-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  axiom-honesty:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install Python deps
+        run: uv sync --extra dev
+
+      - name: Run axiom-honesty audit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          uv run python -m gate.verify.axiom_honesty_cli \
+            --repo "${{ github.repository }}" \
+            --pr "${{ github.event.pull_request.number }}"

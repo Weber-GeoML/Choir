@@ -1,0 +1,174 @@
+name: verify-comparator
+
+# Comparator audit — BLOCKING (design note 14, promoted §8). Runs
+# leanprover/comparator against the PR's task target: kernel-level
+# statement identity (the statement's whole dependency closure, not its
+# source text), axiom-closure whitelisting, and full kernel replay of
+# the solution environment, with builds sandboxed under landrun.
+#
+# Exit contract: `gate.verify.comparator_cli` exits 0 for a rendered
+# match verdict and every not-applicable/not-run path, 1 for an audit
+# failure the contributor owns (statement-mismatch, illegal-axiom,
+# solution-build-failed), and 2 when comparator cannot verify anything
+# (sandbox-unavailable, tool-error, missing-constant — the challenge side
+# is built entirely from the base tree, so a missing constant is never
+# the contributor's fault). This check
+# now blocks a merge: it is registered `CheckClass.TRUST` in
+# `gate/checks.py` and present in `REQUIRED_PRESENT`, so
+# `is_blocking("comparator")` is True and both `merge_pr`'s preflight
+# and the orchestrator's poller act on its verdict — a PR deleting this
+# workflow file no longer reads as clean. It is also `SALVAGE_OPAQUE`:
+# a failure here never seeds a salvage task, because one exit-1 name
+# spans both an unsound statement-mismatch and a rebuild-shaped
+# solution-build-failed, and `classify_failure` cannot tell which fired.
+#
+# Expect red: on any PR whose head tree doesn't compile, or where the
+# landrun sandbox is unavailable, this check will show red instead of
+# the always-green it used to show — that's intended (an actionable red
+# beats a decorative green), and now it does block the merge.
+#
+# UNVALIDATED template (note 14 §8): authored against the comparator
+# v4.31-era source and README but not yet exercised on a live project —
+# the first real lean4 run validates the workspace-generation mapping
+# and measures wall-time. lean4-only; on other provers, and on
+# toolchains below v4.27 (comparator's earliest tag), the job no-ops.
+#
+# Cache discipline (note 14 §8): only the comparator *tool* build is
+# cached, keyed by toolchain tag and built from trusted upstream
+# sources. The generated workspace itself is never cached — restoring a
+# cache a PR build wrote would violate comparator's clean-environment
+# assumption.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: choir-verify-comparator-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  comparator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the CLI reads base-SHA trees via `git show`
+
+      # LANDMINE (design note 14 §8): this step, and every step below it,
+      # uses a per-step `if: steps.floor.outputs.run == 'true'` rather than a
+      # single job-level `if:`. That is deliberate: on a non-lean4 project or
+      # a sub-v4.27 toolchain, every later step skips but this job still
+      # concludes SUCCESS, which is what makes `blocking_failures` /
+      # `missing_required_checks` read a legitimately-not-applicable PR as
+      # present-and-green. Converting this to a job-level `if:` changes that
+      # same case's conclusion to SKIPPED (not SUCCESS), which would
+      # hard-block every PR on isabelle and rocq projects the moment
+      # `comparator` is a required check. Do not "simplify" this without
+      # re-reading note 14 §8's landmine paragraph first.
+      # Reads `lean-toolchain` from the PR's BASE SHA, not the checked-out
+      # merge ref — matching `gate/verify/comparator_cli.py`'s own
+      # `_applicability_reason` (`git show <base_sha>:lean-toolchain`) and
+      # this project's standing invariant that audit policy is read from
+      # base so a PR cannot loosen its own gate (the axiom and sorry
+      # policies already do this). `github.event.pull_request.base.sha` is
+      # the same base-anchored mechanism `.github/workflows/verify-coherence.yml`
+      # and `.github/workflows/verify-trust-report.yml` already use directly
+      # in bash (the latter is what `new-project.sh`/`upgrade-project.sh`
+      # inline for bootstrapped projects). Reading the merge ref instead let
+      # a PR downgrade its own `lean-toolchain` and make comparator inert
+      # *for itself* — and with `statement-equiv` advisory on lean4, that PR
+      # would have no statement gate at all (spec 2026-08-20, finding F2).
+      - name: Toolchain floor pre-check
+        id: floor
+        run: |
+          set -euo pipefail
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          TAG=""
+          if TOOLCHAIN=$(git show "$BASE_SHA:lean-toolchain" 2>/dev/null); then
+            TAG=$(echo "$TOOLCHAIN" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]+)?' | head -1 || true)
+          fi
+          RUN=false
+          if [[ -n "$TAG" ]]; then
+            MAJOR=$(echo "$TAG" | sed -E 's/^v([0-9]+)\..*/\1/')
+            MINOR=$(echo "$TAG" | sed -E 's/^v[0-9]+\.([0-9]+)\..*/\1/')
+            if (( MAJOR > 4 || (MAJOR == 4 && MINOR >= 27) )); then
+              RUN=true
+            fi
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "run=$RUN" >> "$GITHUB_OUTPUT"
+          if [[ "$RUN" == "false" ]]; then
+            echo "comparator not applicable for toolchain '${TAG:-unreadable}' (< v4.27) — skipping (informational)"
+          fi
+
+      - name: Install uv
+        if: steps.floor.outputs.run == 'true'
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install Python deps
+        if: steps.floor.outputs.run == 'true'
+        run: uv sync --extra dev
+
+      - name: Install elan
+        if: steps.floor.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
+            | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Install landrun
+        if: steps.floor.outputs.run == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+      - name: Build landrun from main
+        if: steps.floor.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          go install github.com/zouuup/landrun/cmd/landrun@main
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Checkout comparator at the toolchain tag
+        if: steps.floor.outputs.run == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: leanprover/comparator
+          ref: ${{ steps.floor.outputs.tag }}
+          path: .comparator-tool
+
+      - name: Cache comparator build
+        if: steps.floor.outputs.run == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            .comparator-tool/.lake
+            ~/.elan
+          key: choir-comparator-tool-${{ runner.os }}-${{ steps.floor.outputs.tag }}
+
+      - name: Build comparator + lean4export
+        if: steps.floor.outputs.run == 'true'
+        working-directory: .comparator-tool
+        run: lake build lean4export comparator
+
+      - name: Run comparator audit
+        if: steps.floor.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMPARATOR_LEAN4EXPORT: ${{ github.workspace }}/.comparator-tool/.lake/packages/lean4export/.lake/build/bin/lean4export
+        run: |
+          set -euo pipefail
+          export COMPARATOR_LANDRUN="$(command -v landrun)"
+          uv run python -m gate.verify.comparator_cli \
+            --repo "${{ github.repository }}" \
+            --pr "${{ github.event.pull_request.number }}" \
+            --comparator-bin "${{ github.workspace }}/.comparator-tool/.lake/build/bin/comparator"

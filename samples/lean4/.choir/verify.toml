@@ -1,0 +1,28 @@
+# Per-project audit policy — read by the gate's verify workflows from
+# the BASE commit of each PR (so a PR cannot loosen its own policy).
+# See `gate/verify/config.py`.
+
+[audits.axiom_honesty]
+# net_zero  — PRs must not increase axiom/unsafe/partial/native_decide/
+#             extern counts relative to base (default).
+# whitelist — only the axiom names listed below are permitted anywhere
+#             in changed files; everything else fails, even if it was
+#             already in base. The other patterns stay net-zero.
+policy = "net_zero"
+# allowed_axioms = ["propext", "Quot.sound", "Classical.choice"]
+
+[audits.sorry_delta]
+# block  — net-new sorries fail the check; final submissions must not
+#          add unproven obligations (default).
+# report — net-new sorries are listed in the check output but the
+#          check passes. Blueprint-style projects: partial progress
+#          may merge after orchestrator review; merged sorries enter
+#          the trust inventory as open obligations. The overseer
+#          accepts that the orchestrator's review is load-bearing.
+policy = "block"
+
+[audits.style]
+# Max lines per top-level declaration before verify-style flags it.
+# Default 200; raise for domains with genuinely long proofs, lower for
+# repos that want tight proofs.
+threshold_lines = 200

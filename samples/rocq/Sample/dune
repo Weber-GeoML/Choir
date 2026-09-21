@@ -1,0 +1,3 @@
+; Declares the Coq theory so `dune build` actually compiles the .v files.
+(coq.theory
+ (name Sample))

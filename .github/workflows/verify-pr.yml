@@ -1,0 +1,55 @@
+name: verify-pr
+
+# Clean-room rebuild of the Lean project on every PR. The job's
+# success/failure is the status check — branch protection requires
+# `verify-pr / rebuild` to merge. Phase 3 adds sibling workflows
+# (verify-statement-equiv, verify-axiom-honesty, ...), each its own
+# required check.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: choir-verify-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install elan
+        run: |
+          set -euo pipefail
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
+            | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Cache Lake artifacts and toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            samples/lean4/.lake
+            ~/.elan
+          # Key on the toolchain pin + lakefile; if either changes, cache
+          # is rebuilt. restore-keys allows partial reuse when only the
+          # lakefile changed.
+          key: lake-${{ runner.os }}-${{ hashFiles('samples/lean4/lean-toolchain', 'samples/lean4/lakefile.toml') }}
+          restore-keys: |
+            lake-${{ runner.os }}-
+
+      - name: Show toolchain
+        working-directory: samples/lean4
+        run: |
+          cat lean-toolchain
+          lean --version
+
+      - name: Lake build (clean-room rebuild)
+        working-directory: samples/lean4
+        run: lake build

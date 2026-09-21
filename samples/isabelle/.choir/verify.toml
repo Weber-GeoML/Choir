@@ -1,0 +1,21 @@
+# Per-project audit policy — read by the gate's verify workflows from the
+# BASE commit of each PR (so a PR cannot loosen its own policy). The trust
+# tokens are the isabelle profile's (gate/provers/isabelle.py): the
+# `axiomatization` / `oracle` trust surface, and `sorry` / `oops`
+# placeholders. See gate/verify/config.py.
+
+[audits.axiom_honesty]
+# net_zero  — PRs must not increase the trust surface (axiomatization,
+#             oracle) relative to base (default).
+# whitelist — only the listed names are permitted anywhere in changed files.
+policy = "net_zero"
+# allowed_axioms = []
+
+[audits.sorry_delta]
+# block  — net-new `sorry` / `oops` fail the check (default).
+# report — listed but non-blocking (blueprint-style partial progress).
+policy = "block"
+
+[audits.style]
+# Max lines per top-level declaration before verify-style flags it.
+threshold_lines = 200

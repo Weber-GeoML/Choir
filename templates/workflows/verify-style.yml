@@ -1,0 +1,54 @@
+name: verify-style
+
+# Phase 3 audit: catch PRs that introduce excessively long declarations
+# (proofs or definitions). v0 is a coarse line-count check; future
+# iterations will add identifier-reuse and definition-reuse signals
+# once we have real Lean parsing.
+#
+# ADVISORY (spec 2026-08-17 D9): this check reports and always passes.
+# Length is a soft signal the orchestrator reads, not a merge gate — a
+# correct proof that is honestly long must not be blocked, and a
+# repository-wide linter is the deferred replacement for the heuristic.
+# Default threshold is 200 lines per declaration; per-project override via
+# `.choir/verify.toml` `[audits.style] threshold_lines` (read from the PR
+# base SHA, like the other audit policies), which tunes how much the
+# report says, not what merges.
+#
+# Posts its own status check: `verify-style / style`. Do NOT add it to
+# branch protection's required contexts — it cannot fail.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: choir-verify-style-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  style:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install Python deps
+        run: uv sync --extra dev
+
+      - name: Run style audit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          uv run python -m gate.verify.style_cli \
+            --repo "${{ github.repository }}" \
+            --pr "${{ github.event.pull_request.number }}"

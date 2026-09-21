@@ -1,0 +1,26 @@
+.DS_Store
+.claude/
+
+# A roadmap belongs to a formalization project, never to Choir itself.
+# Root-anchored so a sample project may still ship one.
+/roadmap/
+
+# Reference PDFs live locally only — keep the repo clean.
+*.pdf
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+build/
+dist/
+
+# uv / venv (uv.lock is committed for reproducibility). No trailing slash:
+# the environment is a symlink when relocated out of a synced folder.
+.venv

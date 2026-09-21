@@ -1,0 +1,10 @@
+# Project version pins — read by `choir claim` at workspace setup (advisory,
+# never blocks). For the isabelle profile this file is largely inert: the
+# Mathlib-search reminder is lean-only, and the AFP / toolchain dependency
+# stores for isabelle are deferred (design note 12 §6). The Isabelle release
+# is pinned per task via project_ref.toolchain, not here.
+
+[skill_pack]
+# Version of this project's own skill pack (./skills/). Reserved for future
+# cross-workspace consistency checks; not yet enforced.
+# version = "v1.0"

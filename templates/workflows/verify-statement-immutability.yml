@@ -1,0 +1,88 @@
+name: verify-statement-immutability
+
+# Spec D2 audit: the orchestrator authors every theorem statement, so a
+# worker's PR is a proof-body fill and must leave every declaration that
+# already existed in the base version of a changed file untouched — new
+# declarations stay allowed. See gate/verify/statement_immutability.py for
+# the comparison semantics.
+#
+# Posts the status check `verify-statement-immutability /
+# statement-immutability`. BLOCKING on lean4 and isabelle since 2026-08-23
+# (`CheckClass.TRUST` in gate/checks.py, and in REQUIRED_PRESENT);
+# ADVISORY on rocq alone, via PROVER_OVERRIDES — rocq is the one prover
+# whose false-block rate is entirely unmeasured, and structurally the worst
+# case. Read gate/checks.py's entry for the numbers; don't restate them.
+#
+# HISTORY, because it bears on how to change this file. Two earlier
+# promotions were justified by argument and reverted the same day: four
+# false blocks and a fail-open in round one, five Criticals including a
+# bypass in round two, then a fail-open on a column-zero `structure` in
+# round three. What made the third promotion stick was not another round of
+# heuristic fixes but *measurement* — false-block rates counted over whole
+# corpora (1843 Isabelle theories, 4918 lean4 library files), decomposed by
+# what a worker actually does. The bar changed too: "zero false blocks" was
+# wrong, because a false block is not a wedge — the worker says so in a
+# comment and the orchestrator decides (spec D5). "Rare enough not to be
+# noise, and always actionable" is the bar this check now meets.
+#
+# So: if you change the enumeration or the span rules, re-run the corpus
+# sweep (scripts/measure_statement_immutability.py) rather than reasoning
+# from fixtures. Exact declaration-boundary determination in a
+# whitespace-sensitive grammar still wants a real parser, and the trailing-
+# trim allowlist deliberately over-attributes rather than under-attributes:
+# for a check that blocks, the failure mode must be toward being read.
+#
+# Runs on every PR for every prover: no `paths:` filter and no job-level
+# `if:`. A job-level `if:` would conclude `SKIPPED`, which the merge
+# preflight's presence requirement reads as an absent required check and
+# hard-blocks the PR — now that this check IS in REQUIRED_PRESENT that trap
+# is live, not hypothetical. See templates/workflows/verify-comparator.yml's
+# landmine comment for the same trap.
+#
+# `fetch-depth: 0` is load-bearing for a second reason beyond needing both
+# base and head commits locally: the CLI resolves same-PR renames via
+# `git log base..head --diff-filter=R`, and on a shallow checkout that
+# lookup finds nothing, so the base read comes back empty and a renamed
+# file's carried-over declarations would pass unchecked — reopening the
+# rename bypass gate/verify/statement_immutability_cli.py was fixed to
+# close. Do not shallow this checkout.
+#
+# No `issues: read`: unlike statement-equiv, this check never reads a
+# task issue body (it examines every changed file's own declarations,
+# not one named target), so it needs only contents + pull-requests read.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: choir-verify-immutability-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  statement-immutability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # rename detection needs full history; see header
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install Python deps
+        run: uv sync --extra dev
+
+      - name: Run statement-immutability audit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          uv run python -m gate.verify.statement_immutability_cli \
+            --repo "${{ github.repository }}" \
+            --pr "${{ github.event.pull_request.number }}"

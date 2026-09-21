@@ -1,0 +1,94 @@
+name: verify-trust-report
+
+# Environment-level trust report (design note 12 §4, autodetection per
+# §4.1) — INFORMATIONAL ONLY, never a merge gate. Rebuilds the project,
+# then diffs the PR's base SHA against the checkout to find
+# changed/new declarations (gate/verify/changed_decls.py) and probes
+# each one via the effective prover's own kernel (`#print axioms` for
+# lean4, `Print Assumptions` for rocq, kernel oracle-tracking for
+# isabelle). Exits 0 whether or not any declaration turns out to
+# depend on axioms/oracles, and whether or not any declaration is
+# unresolvable — this check reports, it never blocks. Promotion to
+# blocking stays per-prover, only after a real run validates it (design
+# note 12 §9). For ad-hoc/deeper queries (specific decls not on this
+# PR's diff, cross-checking a dependency's assumptions, ...), invoke
+# `gate/verify/trust_report_cli.py` directly with explicit --decl/
+# --import args.
+#
+# `actions/checkout` defaults to a shallow single-commit checkout —
+# `fetch-depth: 0` here so the base SHA is reachable by `git diff`/
+# `git show` in detection.
+#
+# Toolchain setup mirrors verify-pr.yml (lean4 via elan) plus a build
+# step (probes resolve compiled imports, so the project must already
+# be built). Isabelle/rocq projects have no toolchain step here yet —
+# their trust-report commands are documented-recipe/canned-transcript-
+# tested only (design note 12 §9); detection still runs for them (it's
+# profile-generic), but every probe will fail to run without a
+# toolchain, and each failure becomes an `unresolved` report line
+# rather than a check failure.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: choir-verify-trust-report-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  trust-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install elan
+        run: |
+          set -euo pipefail
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh \
+            | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Cache Lake artifacts and toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            samples/lean4/.lake
+            ~/.elan
+          key: lake-${{ runner.os }}-${{ hashFiles('samples/lean4/lean-toolchain', 'samples/lean4/lakefile.toml') }}
+          restore-keys: |
+            lake-${{ runner.os }}-
+
+      # continue-on-error keeps this check honest: it is informational,
+      # and a broken build is verify-pr/rebuild's failure to report — a
+      # duplicate red X here would only muddy the signal.
+      - name: Lake build (probes need compiled imports)
+        id: build
+        continue-on-error: true
+        working-directory: samples/lean4
+        run: lake build
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install Python deps
+        run: uv sync --extra dev
+
+      - name: Run trust report (informational; autodetects changed declarations)
+        if: steps.build.outcome == 'success'
+        run: |
+          uv run python -m gate.verify.trust_report_cli \
+            --workspace samples/lean4 \
+            --base-sha ${{ github.event.pull_request.base.sha }}
+
+      - name: Skip note (build failed upstream)
+        if: steps.build.outcome == 'failure'
+        run: echo "build failed — skipping trust probe; see verify-pr / rebuild for the real failure"

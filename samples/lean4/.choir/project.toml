@@ -1,0 +1,29 @@
+# Project-level settings. Three readers, by section:
+#   [project]    — prover selection, read gate-side (base-SHA) and
+#                  worker-side (pinned commit) by gate/provers/select.py.
+#   [automation] — read by the orchestrator agent at loop start
+#                  (orchestrator/project_config.py).
+#   [reconcile]  — read by the gate's daily reconcile workflow
+#                  (gate/reconcile/config.py).
+# See `docs/agents/ORCHESTRATOR.md` and design note 12 (prover profiles).
+#
+# The gate's deterministic audits and branch protection apply at every
+# automation level; the merge knob only changes who presses the button.
+
+# Prover selection — lean4 | isabelle | rocq. Absent = lean4 (default).
+[project]
+prover = "lean4"
+
+[automation]
+# auto    — the orchestrator reviews and merges green PRs on its own (default)
+# approve — the orchestrator reviews and recommends; a human confirms
+# manual  — the orchestrator observes and reports only
+merge = "auto"
+
+[reconcile]
+# How long a claim may go without a heartbeat before the daily reconcile
+# workflow reclaims it back to choir/available. Tune to the project's pace:
+# a fast benchmark wants a short window so abandoned problems recycle
+# quickly; a months-long formalization wants a long one so a contributor
+# mid-proof isn't reclaimed out from under them. Default 7.
+stale_after_days = 7

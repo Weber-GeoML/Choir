@@ -1,0 +1,56 @@
+name: verify-coherence
+
+# Phase 5 v0: coherence indexer. Scans all .lean files in the project
+# at base + head, surfaces newly-introduced declarations whose names
+# collide with existing ones elsewhere. Informational only — does not
+# block merge. (Namespaces legitimately share names; a hard rule
+# here would produce too many false positives.)
+#
+# Future iterations: namespace-aware fully-qualified names; Mathlib-
+# wide duplicate detection; signature-equivalence via Lean REPL.
+# See `gate/indexer/__init__.py` for the v0 caveats.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: choir-verify-coherence-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  coherence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: head
+          fetch-depth: 0
+
+      - name: Check out base
+        run: |
+          # Clone the base SHA into a sibling directory so the indexer
+          # can scan both base + head trees in one CLI invocation.
+          git clone head base
+          cd base
+          git checkout "${{ github.event.pull_request.base.sha }}"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install Python deps
+        working-directory: head
+        run: uv sync --extra dev
+
+      - name: Run coherence indexer
+        working-directory: head
+        run: |
+          uv run python -m gate.indexer.cli \
+            --base-dir ../base \
+            --head-dir .

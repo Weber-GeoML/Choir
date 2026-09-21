@@ -1,0 +1,13 @@
+{
+  "protocol_version": 8,
+  "surfaces": {
+    "labels": "b3039bc531c74c0cd2183eea2aca1aa852a48c7773a7d3d3da4830d1e6edb9b4",
+    "lease_conventions": "a41a411da59a5165f88db51402c28cb874a0f7eac987adf1d8f0d2506b45e47e",
+    "project_toml_contract": "3b50ff40a2f3f32bf69a97efbd448f4c7beb20481b9ce70295039af4ccad2b20",
+    "prover_registry": "ddbe1ba4f39d423760d0bd7f9f97e3bcd2fe19ea2ac4ad226d2a954c5fe99431",
+    "reduction_record": "20dea60bb6f8b54513646ad1ff06fe99c77a146f113fd83bb39a0d86a33f092a",
+    "required_checks": "be1a7fc5eb0c3ab8fe844ca0d1481cdc93a0f2e6d6d7a40519efc5c9005cd333",
+    "task_record": "f46b14b7709430fb77db5d8b6550cf78a48140ae1f656fd5315acca6cb99e5e3",
+    "verify_config": "03a1e9ea686caaa4c5ace903fbb003df5404ba12a5cdb3d0c26e504180124b40"
+  }
+}

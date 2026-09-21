@@ -1,0 +1,52 @@
+name: verify-statement-equiv
+
+# Phase 3 audit: catch PRs that "prove" a sorry by silently weakening
+# the statement. Compares the base and head versions of the target
+# declaration's signature (string-based, naive — see
+# gate/verify/statement_equiv.py for the v0 caveat).
+#
+# Posts its own required status check: `verify-statement-equiv / statement-equiv`.
+# Branch protection should require this in addition to verify-pr / rebuild.
+#
+# This check's PRESENCE is required on every prover, but whether a FAILURE
+# blocks a merge is prover-dependent (design note 14 §8): blocking on
+# isabelle/rocq (their only statement check), advisory on lean4, where
+# verify-comparator supersedes it at the kernel level. See
+# gate/checks.py's PROVER_OVERRIDES for the mapping — don't restate it here.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: choir-verify-equiv-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  statement-equiv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # need both base and head commits in local git
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install Python deps
+        run: uv sync --extra dev
+
+      - name: Run statement-equivalence audit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          uv run python -m gate.verify.statement_equiv_cli \
+            --repo "${{ github.repository }}" \
+            --pr "${{ github.event.pull_request.number }}"

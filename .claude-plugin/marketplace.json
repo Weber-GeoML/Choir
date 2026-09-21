@@ -1,0 +1,11 @@
+{
+  "name": "choir",
+  "owner": { "name": "Weber-GeoML" },
+  "plugins": [
+    {
+      "name": "choir",
+      "source": "./plugin",
+      "description": "Community-led formalization in kernel-checked proof assistants (Lean 4, Isabelle, Rocq) — start a project as overseer or join one as a contributor."
+    }
+  ]
+}

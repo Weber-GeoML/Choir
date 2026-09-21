@@ -1,0 +1,10 @@
+{
+  "name": "choir",
+  "version": "0.1.2",
+  "description": "Community-led formalization in kernel-checked proof assistants (Lean 4, Isabelle, Rocq) \u2014 start a project as overseer or join one as a contributor.",
+  "repository": "https://github.com/Weber-GeoML/Choir",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Weber-GeoML"
+  }
+}
