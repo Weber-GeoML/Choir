@@ -113,8 +113,8 @@ class ProverProfile:
     file), `protected_files` (paths a worker may never edit).
     `trust_patterns` is `(label, regex-source)` pairs — the prover's
     trust-token vocabulary, compiled by `gate.verify.axiom_honesty`.
-    `extra_audits` names prover-only audits (lean4's `decide_instance`;
-    empty elsewhere). `search_tooling_note` gates the client's
+    `extra_audits` names prover-only audits (none at present).
+    `search_tooling_note` gates the client's
     Mathlib-search advisory (lean4 only).
 
     Trust-report probe (design note 12 §4)

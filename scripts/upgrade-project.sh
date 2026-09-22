@@ -175,7 +175,7 @@ cp "$CHOIR_DIR/pyproject.toml" "$CHOIR_DIR/uv.lock" "$TARGET/"
 # Project-agnostic verify workflows: no per-project templating, so a
 # direct copy from this checkout is always correct.
 PY_WORKFLOWS=(issue-intake verify-statement-equiv verify-statement-immutability \
-              verify-axiom-honesty verify-sorry verify-decide-instance verify-style \
+              verify-axiom-honesty verify-sorry verify-style \
               verify-comparator issue-close-on-merge reconcile)
 for w in "${PY_WORKFLOWS[@]}"; do
   cp "$CHOIR_DIR/templates/workflows/$w.yml" "$TARGET/.github/workflows/$w.yml"

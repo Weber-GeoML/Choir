@@ -139,7 +139,7 @@ def test_lean4_declarative_fields() -> None:
         "lean-toolchain",
         "lake-manifest.json",
     )
-    assert LEAN4.extra_audits == ("decide_instance",)
+    assert LEAN4.extra_audits == ()
     assert LEAN4.search_tooling_note is True
 
 

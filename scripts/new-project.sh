@@ -259,7 +259,7 @@ mkdir -p .github/workflows
 # the first commit both iterate it, so a workflow added here is installed
 # AND declared, with no second list to forget.
 PY_WORKFLOWS=(issue-intake verify-statement-equiv verify-statement-immutability \
-              verify-axiom-honesty verify-sorry verify-decide-instance verify-style \
+              verify-axiom-honesty verify-sorry verify-style \
               verify-comparator issue-close-on-merge reconcile)
 for w in "${PY_WORKFLOWS[@]}"; do
   cp "$CHOIR_DIR/templates/workflows/$w.yml" .github/workflows/
@@ -775,7 +775,7 @@ if gh api -X PUT "repos/$TARGET/branches/main/protection" \
   "required_status_checks": {
     "strict": false,
     "contexts": ["rebuild", "statement-equiv",
-                 "axiom-honesty", "sorry-delta", "decide-instance", "style",
+                 "axiom-honesty", "sorry-delta", "style",
                  "comparator", "statement-immutability"]
   },
   "enforce_admins": false,

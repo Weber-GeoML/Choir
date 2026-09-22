@@ -53,7 +53,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-PROTOCOL_VERSION = 8
+PROTOCOL_VERSION = 9
 
 PROJECT_CONFIG_RELATIVE_PATH = Path(".choir") / "project.toml"
 DEFAULT_PROTOCOL_PIN = 1

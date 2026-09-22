@@ -211,8 +211,7 @@ Triage by *what* failed:
 - **Near-miss / quality failures** — a failed `rebuild` (a comparator
   solution-build-failed alongside a **green** `rebuild` is Choir's own
   infrastructure fault, not the contributor's — escalate it instead of
-  triaging it as a duplicate), a new Decidable or Classical escape
-  (`decide-instance`), or a sorry under `report`. The mathematics is
+  triaging it as a duplicate), or a sorry under `report`. The mathematics is
   usually sound; only the shape is off. **Salvage it: open a follow-up
   `prove` task that seeds the worker's branch (the almost-good code) and
   names the one thing to fix.** The next worker starts from 90%, not

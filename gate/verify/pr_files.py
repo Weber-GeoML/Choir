@@ -2,10 +2,10 @@
 
 `gh pr view --json files` truncates at 100 changed files — verified
 live against a real 248-file PR, which came back with exactly 100.
-Every one of the five delta audit CLIs (`statement_immutability_cli`,
-`axiom_honesty_cli`, `sorry_delta_cli`, `style_cli`,
-`decide_instance_cli`) built its own `fetch_pr_files` on that call, so
-all five silently ignored everything past the hundredth changed file:
+Every one of the delta audit CLIs (`statement_immutability_cli`,
+`axiom_honesty_cli`, `sorry_delta_cli`, `style_cli`) built its own
+`fetch_pr_files` on that call, so each silently ignored everything
+past the hundredth changed file:
 a PR could pad itself with 100 trivial files and push its real change
 out of the audited set entirely. That is a fail-open in five shipped
 checks.

@@ -377,24 +377,11 @@ def test_composite_name_with_unknown_job_still_blocks() -> None:
     assert is_blocking("verify-pr / some-future-check")
 
 
-def test_required_present_includes_decide_instance() -> None:
-    """decide-instance is a lean4-only audit but a universally-present check.
-
-    `new-project.sh`/`upgrade-project.sh` copy `verify-decide-instance.yml`
-    for every prover with no `paths:` filter, and the CLI returns 0 with a
-    not-applicable line on isabelle/rocq — so requiring its presence
-    false-blocks nobody, while omitting it let a PR delete the workflow and
-    merge a `Classical`/`Decidable` shortcut with everything else green.
-    """
-    assert "decide-instance" in REQUIRED_PRESENT
-    assert is_blocking("decide-instance")
-
-
 def test_required_present_excludes_advisory_checks() -> None:
     """An advisory check exits 0 on every outcome, so its presence proves
     nothing. `comparator` is no longer advisory (promoted, note 14 §8) and
-    now belongs in the set for the same reason `decide-instance` does; only
-    genuinely-advisory `style` stays excluded."""
+    belongs in the set because its workflow is installed and reports on every
+    prover; only genuinely-advisory `style` stays excluded."""
     for name in REQUIRED_PRESENT:
         assert CHECKS[name] is not CheckClass.ADVISORY
     assert "comparator" in REQUIRED_PRESENT
@@ -409,7 +396,6 @@ def test_missing_required_reports_absent_checks_in_registry_order() -> None:
         "statement-equiv",
         "axiom-honesty",
         "sorry-delta",
-        "decide-instance",
         "comparator",
         "statement-immutability",
     ]

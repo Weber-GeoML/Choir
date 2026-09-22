@@ -1,6 +1,6 @@
 """CLI: style audit on a PR.
 
-Mirrors the shape of `axiom_honesty_cli.py` and `decide_instance_cli.py`.
+Mirrors the shape of `axiom_honesty_cli.py`.
 Reads the PR's changed files via the shared
 `gate.verify.pr_files.fetch_pr_files` (paginated past `gh pr view
 --json files`'s 100-file cap). Aggregates findings across all changed

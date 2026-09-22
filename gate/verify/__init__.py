@@ -6,7 +6,7 @@ green for `main` to accept the merge.
 
 v0 ships clean-room rebuild (in `.github/workflows/verify-pr.yml`,
 shell-only) and statement-equivalence (this package). Future audits:
-axiom-honesty, decide-instance, style — each its own sibling module.
+axiom-honesty, style — each its own sibling module.
 
 The pure decision logic lives in module top-level functions; the CLI
 in `*_cli.py` fetches data from gh/git and applies the logic. Same

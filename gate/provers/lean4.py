@@ -800,7 +800,7 @@ LEAN4 = ProverProfile(
         "lean-toolchain",
         "lake-manifest.json",
     ),
-    extra_audits=("decide_instance",),
+    extra_audits=(),
     search_tooling_note=True,
     extract_statement=extract_lean_statement,
     trust_report_command=lean_trust_report_command,

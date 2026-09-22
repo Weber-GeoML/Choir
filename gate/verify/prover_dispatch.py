@@ -1,7 +1,7 @@
 """Shared CLI prover-resolution for the PR-triggered verify audits.
 
 Every delta audit CLI (`axiom_honesty_cli`, `sorry_delta_cli`, `style_cli`,
-`statement_equiv_cli`, `decide_instance_cli`) already fetches the PR's base
+`statement_equiv_cli`) already fetches the PR's base
 SHA before doing anything else. This module gives them one shared way to
 turn `(--prover flag, base_sha)` into the effective `ProverProfile`, per
 design note 12 §2.3's precedence rule:

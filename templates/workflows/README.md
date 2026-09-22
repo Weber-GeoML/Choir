@@ -6,7 +6,7 @@ These GitHub Actions workflows are copied into every Choir-managed project's
 `verify-statement-equiv` (blocking on isabelle/rocq, advisory on lean4 —
 `gate/checks.py`'s `PROVER_OVERRIDES`, design note 14 §8),
 `verify-statement-immutability` (advisory on every prover by decision, not
-by schedule — spec D2, design note 14 §8 item 5), `verify-axiom-honesty`, `verify-style`, `verify-decide-instance`,
+by schedule — spec D2, design note 14 §8 item 5), `verify-axiom-honesty`, `verify-style`,
 and the merge-blocking `verify-comparator`, lean4-only — design note 14 §8)
 and lifecycle jobs (`issue-intake`, `issue-close-on-merge`, `reconcile`).
 

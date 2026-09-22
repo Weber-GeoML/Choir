@@ -53,8 +53,8 @@ discussion first.
   `statement-equiv`'s string comparison is the blocking check; a
   statement-immutability audit (every declaration already present in a changed
   file must arrive untouched); an axiom-dependency audit with per-prover trust
-  vocabulary (`gate/provers/`); a sorry-delta audit; and a decide-instance
-  audit on lean4. **No merge path may bypass these** — including the
+  vocabulary (`gate/provers/`); and a sorry-delta audit.
+  **No merge path may bypass these** — including the
   orchestrator's: `merge_pr` runs its own preflight refusing any PR whose
   required checks aren't present and green, at every automation level. Branch
   protection is a second layer where available, not the enforcement.
@@ -98,7 +98,7 @@ choir/
 ├── gate/           # deterministic trust substrate, invoked from workflows
 │   ├── state/      # TaskRecord, intake parsing, lease comments
 │   ├── verify/     # statement_equiv, statement_immutability, axiom_honesty,
-│   │               # sorry_delta, decide_instance, style, comparator
+│   │               # sorry_delta, style, comparator
 │   ├── provers/    # per-prover trust vocabulary + declaration syntax
 │   ├── inventory/  # trust-boundary scan (axioms + sorries with locations)
 │   ├── reconcile/  # stale-claim logic

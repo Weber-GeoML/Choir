@@ -45,7 +45,6 @@ def _original() -> TaskRecord:
         ({"axiom-honesty"}, FailureClass.TRUST),
         ({"sorry-delta"}, FailureClass.TRUST),
         ({"style"}, FailureClass.NEAR_MISS),
-        ({"decide-instance"}, FailureClass.NEAR_MISS),
         ({"rebuild"}, FailureClass.NEAR_MISS),
         ({"style", "rebuild"}, FailureClass.NEAR_MISS),
         ({"style", "axiom-honesty"}, FailureClass.TRUST),   # any trust → TRUST

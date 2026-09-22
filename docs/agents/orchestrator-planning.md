@@ -391,8 +391,8 @@ worker's job, not yours.
 
 **Reviewing a golf PR.** Concentrate on what the gate can't see:
 elaboration-time or readability regressions, and axiom-closure drift
-within the permitted set. Salvage works unchanged: `rebuild` or
-`decide-instance` failures are a `NEAR_MISS` follow-up; trust failures
+within the permitted set. Salvage works unchanged: a `rebuild`
+failure is a `NEAR_MISS` follow-up; trust failures
 reject as always. `style` is advisory, so a golf attempt that didn't
 shorten anything comes back green.
 

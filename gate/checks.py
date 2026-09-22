@@ -79,7 +79,6 @@ CHECKS: dict[str, CheckClass] = {
     "statement-immutability": CheckClass.TRUST,
     "axiom-honesty": CheckClass.TRUST,
     "sorry-delta": CheckClass.TRUST,
-    "decide-instance": CheckClass.QUALITY,
     # Advisory per spec D9 — reports a length signal the orchestrator reads.
     "style": CheckClass.ADVISORY,
     # Promoted to blocking (spec D3, note 14 §8): a rendered verdict is
@@ -130,7 +129,6 @@ CHECK_WORKFLOW_TEMPLATES: dict[str, str | None] = {
     "statement-immutability": "verify-statement-immutability.yml",
     "axiom-honesty": "verify-axiom-honesty.yml",
     "sorry-delta": "verify-sorry.yml",
-    "decide-instance": "verify-decide-instance.yml",
     "style": "verify-style.yml",
     "comparator": "verify-comparator.yml",
     "trust-report": None,  # generated inline as verify-trust-report.yml (lean4 only)
@@ -265,18 +263,7 @@ def is_blocking(name: str, *, prover: str | None = None) -> bool:
 # not TRUST — an absent rebuild means no audit of any kind ran, which is
 # strictly worse than a failed one.
 #
-# `decide-instance` is here despite being a lean4-only *audit*: the workflow
-# is installed for every prover (`scripts/new-project.sh` and
-# `upgrade-project.sh` copy `verify-decide-instance.yml` unconditionally,
-# with no `paths:` filter), and on isabelle/rocq
-# `gate/verify/decide_instance_cli.py` prints a not-applicable line and
-# returns 0. So the check is present-and-green on all three provers, and
-# requiring its presence false-blocks nobody. It is a QUALITY check named in
-# AGENTS.md's Day-1 audit floor; leaving it out let a PR delete
-# `verify-decide-instance.yml`, add a `Classical`/`Decidable` shortcut, and
-# merge with every other required name green.
-#
-# `comparator` now qualifies for the same reason `decide-instance` does: the
+# `comparator` qualifies for the same reason: the
 # workflow is installed for every prover (design note 14's template ships
 # unconditionally), and it reports a green not-applicable line on non-lean4
 # provers and on lean4 toolchains below v4.27 rather than failing — so
@@ -289,14 +276,11 @@ REQUIRED_PRESENT: tuple[str, ...] = (
     "statement-equiv",
     "axiom-honesty",
     "sorry-delta",
-    "decide-instance",
     "comparator",
     # Present on every prover, blocking on lean4 and isabelle — the rocq
     # relaxation is about the *conclusion*, not presence. Its workflow is
     # copied for all three and reports everywhere, so a PR whose head
-    # deletes that workflow must still be caught here, exactly as
-    # `decide-instance` (a lean4-only *audit*) is a universally-present
-    # *check*.
+    # deletes that workflow must still be caught here.
     "statement-immutability",
 )
 
@@ -306,7 +290,6 @@ BRANCH_PROTECTION_CONTEXTS: tuple[str, ...] = (
     "statement-equiv",
     "axiom-honesty",
     "sorry-delta",
-    "decide-instance",
     "style",
     "comparator",
     "statement-immutability",

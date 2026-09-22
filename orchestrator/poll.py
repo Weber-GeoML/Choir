@@ -75,8 +75,8 @@ def _checks_state(pr: PRView, *, prover: str | None = None) -> str:
     mergeability *the way `merge_pr` does* only when both are called with the
     same prover; the default `None` is the strict reading both fall back to.
     `missing_required_checks` takes no `prover`: presence is not
-    prover-dependent (a per-prover-inapplicable audit like `decide-instance`
-    or `comparator` reports a green not-applicable line rather than being
+    prover-dependent (a per-prover-inapplicable audit like `comparator`
+    reports a green not-applicable line rather than being
     absent — see `gate.checks.REQUIRED_PRESENT`'s docstring), so there is
     nothing for a keyword to mean there.
 

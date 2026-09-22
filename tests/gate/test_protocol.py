@@ -34,7 +34,7 @@ def test_protocol_version_is_8() -> None:
     require editing a test that says which decision. Design note 13 §2
     carries what each version means.
     """
-    assert PROTOCOL_VERSION == 8
+    assert PROTOCOL_VERSION == 9
 
 
 # ---------------------------------------------------------------------------
