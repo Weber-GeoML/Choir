@@ -240,9 +240,13 @@ def find_decl_spans(
 # immediately after `deriving`; only the standalone `deriving instance
 # Repr for Point` command does. Matching the bare keyword would
 # misclassify the attached form as a trailer.
+# `end` is excluded when a sentence-ending `.` follows it: under
+# `re.IGNORECASE` a column-zero `end.` closing a Rocq `match` inside a
+# statement would otherwise read as a trailer and truncate the span before
+# the statement's own `.`. A scope-closing `End Foo.` still matches.
 _NON_BODY_TRAILER_RE = re.compile(
     r"^\s*(?:"
-    r"end\b|namespace\b|section\b|import\b|open\b|variable\b|set_option\b"
+    r"end\b(?!\s*\.)|namespace\b|section\b|import\b|open\b|variable\b|set_option\b"
     r"|universe\b|notation\b|attribute\b"
     r"|deriving\s+instance\b"
     r")",
