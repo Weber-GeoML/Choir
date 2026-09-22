@@ -400,8 +400,10 @@ def extract_rocq_statement(text: str, decl_name: str) -> str | None:
 
     Returns `None` if no match, or no sentence-ending `.`, is found.
     """
+    # Not `\b`: a name may end in `'`, which is a Rocq identifier character
+    # but not a regex word character, so no boundary exists after it.
     prefix_re = re.compile(
-        rf"(?m)^\s*{_DECL_PREFIX}{_KEYWORD}\s+{re.escape(decl_name)}\b"
+        rf"(?m)^\s*{_DECL_PREFIX}{_KEYWORD}\s+{re.escape(decl_name)}(?![\w'])"
     )
     match = prefix_re.search(text)
     if match is None:
@@ -426,7 +428,11 @@ def extract_rocq_statement(text: str, decl_name: str) -> str | None:
 # the stack permanently one deep for the rest of the file.
 # `Declare Module M : S.` is bodyless too and simply does not match,
 # since the line does not start with `Module`.
-_MODULE_OPEN_RE = re.compile(r"^\s*Module\s+(?:Type\s+)?([A-Za-z_][\w']*)(?![^.\n]*:=)")
+# The optional `Import`/`Export` token sits between `Module` and the name
+# (`Module Import M.`), and is not part of it.
+_MODULE_OPEN_RE = re.compile(
+    r"^\s*Module\s+(?:(?:Import|Export)\s+)?(?:Type\s+)?([A-Za-z_][\w']*)(?![^.\n]*:=)"
+)
 
 # `Section A.` is tracked but contributes NOTHING to the path, as lean4's
 # `section` is: a Rocq `Section` does not qualify the declarations inside
