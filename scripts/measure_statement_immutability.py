@@ -1,9 +1,10 @@
 r"""Corpus measurement harness for the `statement-immutability` audit.
 
-**Not a test, and deliberately not in the default suite.** It reads two
-external corpora that exist only on a machine with the toolchains
-installed (an Isabelle2025-2 distribution and one or more lean4 elan
-toolchains), and a full run is minutes per edit kind. Invoked by hand:
+**Not a test, and deliberately not in the default suite.** It reads
+external corpora that exist only on a machine that has them (an
+Isabelle2025-2 distribution, one or more lean4 elan toolchains, and for
+rocq a checkout tree named by `CHOIR_ROCQ_CORPUS`), and a full run is
+minutes per edit kind. Invoked by hand:
 
     python3 scripts/measure_statement_immutability.py \
         --corpus isabelle --kind 3a --out /tmp/isa-3a.jsonl
@@ -18,7 +19,7 @@ so the promotion question is how often either verdict lands on a diff
 spec D2 permits. Four permitted edit kinds, three forbidden ones, and
 `census`, which edits nothing and counts what the enumerator sees:
 
-- `1`  fill a placeholder (`sorry`/`oops`/`undefined`) in a body
+- `1`  fill a placeholder (`sorry`/`oops`/`undefined`/`Admitted`) in a body
 - `2`  rewrite a proof body of a proof-bearing declaration (a `golf`)
 - `3a` insert a permitted new helper declaration at the *earliest*
        plausible top-level position in the region between two
@@ -68,6 +69,7 @@ from gate.provers.base import ProverProfile
 from gate.provers.decl_syntax import continuation_lines_for, decl_line_regex_for
 from gate.provers.isabelle import ISABELLE
 from gate.provers.lean4 import LEAN4
+from gate.provers.rocq import ROCQ
 from gate.verify.statement_equiv import (
     extract_statement,
     normalize_statement,
@@ -94,6 +96,21 @@ ISABELLE_ROOT = (
 )
 LEAN_ROOTS = sorted(
     glob.glob(os.path.expanduser("~/.elan/toolchains/*/src/lean"))
+)
+# A rocq toolchain ships no library source tree the way an Isabelle
+# distribution or a lean4 elan toolchain does, and the 9.x split moved
+# the standard library out of the compiler repo, so the rocq corpus is
+# three shallow clones under one directory: `rocq/` (rocq-prover/rocq —
+# `theories/` is the Corelib prelude), `stdlib/` (rocq-prover/stdlib) and
+# `math-comp/`. `rocq/test-suite` is deliberately excluded: its files
+# exercise error paths and are not code a worker would ever edit.
+ROCQ_CORPUS = os.environ.get(
+    "CHOIR_ROCQ_CORPUS", os.path.expanduser("~/rocq-corpus")
+)
+ROCQ_ROOTS = (
+    f"{ROCQ_CORPUS}/rocq/theories",
+    f"{ROCQ_CORPUS}/stdlib/theories",
+    f"{ROCQ_CORPUS}/math-comp",
 )
 
 # Top-level commands that cannot be part of a preceding declaration's
@@ -148,6 +165,37 @@ _ISABELLE_TOPLEVEL = (
     "old_rep_datatype", "bnf", "copy_bnf", "bnf_axiomatization",
     "functor", "external_file", "compile_generated_files",
     "generate_file",
+)
+# Same derivation as the two tuples above, but the admissibility question
+# rocq asks is narrower: a vernacular belongs here only if it cannot
+# appear inside an OPEN proof. Rocq rejects a nested proof by default, so
+# a helper `Lemma` inserted between two tactics would not compile, and
+# `Set`/`Unset`/`Opaque`/`Transparent`/`Typeclasses`/`Time` are all legal
+# mid-script — they are absent for that reason, not by oversight. So are
+# `Proof using`, `Next Obligation` and `Solve Obligations`, which
+# *continue* a proof rather than follow one, and the bullets
+# (`-`/`+`/`*`/`{`), `with`/`where` continuations and every tactic name.
+# `Import`, `Open Scope`, `Notation`, `End` and `Section` are absent for
+# the opposite reason: `_NON_BODY_TRAILER_RE` already ends a span on
+# them, so they are never over-attributed in the first place.
+#
+# `#` is the `#[...]` attribute line carrying a command after it
+# (`#[local] Hint Resolve foo.`); the standalone form already ends the
+# span. Matching the bare `#` is what the trailing `(?![A-Za-z0-9_'])`
+# allows — the attribute's `[` is not a word character — and column-zero
+# `#` is the attribute syntax and nothing else in rocq.
+_ROCQ_TOPLEVEL = (
+    "#",
+    "Require", "From", "Export", "Include", "Module",
+    "Abbreviation", "Infix", "Reserved", "Number", "Tactic",
+    "Delimit", "Bind", "Declare", "Create",
+    "Arguments", "Implicit", "Prenex", "Generalizable", "Context",
+    "Canonical", "Coercion", "Identity", "Existing", "Register",
+    "Hint", "Scheme", "Combined", "Derive", "Add",
+    "Extract", "Extraction", "Ltac", "Ltac2", "Elpi", "Goal",
+    "Local", "Global",
+    "HB.mixin", "HB.structure", "HB.factory", "HB.builders",
+    "HB.instance", "HB.end", "HB.lock", "HB.saturate",
 )
 
 # lean4 modifiers/attribute prefixes that a *declaration line* may carry.
@@ -223,6 +271,43 @@ CORPORA: dict[str, Corpus] = {
         helper=("theorem choirAux{n} : True := by", "  trivial"),
         canonical_body=" by\n  simp_all",
         balance_pairs=(("/-", "-/"),),
+    ),
+    "rocq": Corpus(
+        profile=ROCQ,
+        roots=ROCQ_ROOTS,
+        suffix=".v",
+        # Exactly rocq's own `thm_token` group, which is also
+        # `statement_keywords` minus `definition_keywords` with nothing
+        # left over: every assertion command carries a proof, and no
+        # non-assertion command does.
+        proof_bearing=(
+            "Theorem", "Lemma", "Corollary", "Proposition",
+            "Fact", "Remark", "Property",
+        ),
+        # No analogue needed, for a reason neither other prover shares.
+        # `extract_rocq_statement` captures one *sentence* — keyword
+        # through the first `.` followed by whitespace, outside strings
+        # and comments — and an assertion command's statement IS that
+        # sentence: the proof lives in the sentences after it
+        # (`Proof. … Qed.`), never inside the one the extractor returns.
+        # So the extracted statement can never run into syntax the body
+        # owns, which is the failure lean4's `:=` terminator screens for.
+        body_terminator=None,
+        plausible_toplevel=_ROCQ_TOPLEVEL,
+        # Rocq's enumeration gap is in KEYWORDS, not modifiers:
+        # `decl_modifiers` is already the complete `legacy_attr` group
+        # and `decl_prefix_flags` the complete `control_flag` group, so
+        # there is no unrecognized prefix to widen with. The commands the
+        # scan really misses are the two-word ones (`Existing Instance`,
+        # `Rewrite Rule`) and `Canonical`/`Coercion`/`Derive`/`Scheme`/
+        # `Context` — a keyword set `permissive_decl_re` cannot express,
+        # since it reuses `profile.decl_keywords`. Kind 4c therefore
+        # measures almost nothing on rocq; that is a limit of the
+        # measurement, not evidence the gap is small.
+        permissive_modifiers=(),
+        helper=("Lemma choir_aux_{n} : True.", "Proof. exact I. Qed."),
+        canonical_body="\nProof. easy. Qed.",
+        balance_pairs=(("(*", "*)"),),
     ),
 }
 
@@ -372,6 +457,56 @@ _DUP_PREFIX = "<duplicate declaration name"
 _UNLOCATABLE = "<declaration text could not be located>"
 
 
+def findings_by_key(
+    findings: list[Finding], spans: list[DeclSpan], lines: list[str], *,
+    qualified: dict[int, str], profile: ProverProfile,
+) -> dict[str, Finding]:
+    """Attach each `Finding` to the base declaration key that produced it.
+
+    A name-keyed join does not work: `Finding.decl` is the *display*
+    name, `qualified.get(start_line, span.name)`, while
+    `compare_declarations` groups by `_decl_key`, which additionally
+    carries the kind class and, for an anonymous declaration, its
+    statement. So one display can stand for several keys, and — since
+    the two spellings are not even the same shape — a dict keyed on
+    `_decl_key` matches no finding at all: every edit reads `UNCHANGED`
+    and every real verdict lands in the `collateral` bucket, a silent
+    zero on the forbidden kinds.
+
+    Position resolves most of what the name cannot.
+    `compare_declarations` iterates its base index once, in
+    first-appearance order of the key, and appends at most one finding
+    per key, so the findings are a subsequence of that order and each
+    resolves to the next key whose display it matches.
+
+    Residual, and the reason a per-edit number wants an unbatched
+    confirmation: when one display covers several keys and only some of
+    them report, the leftmost match can name the wrong one of a
+    same-display pair. It is a permutation within that pair — the
+    blocked *count* for a file is right, the attribution is not — and
+    it only arises where the display repeats at all (13% of rocq spans,
+    mostly `Variables (T : Type)`, whose name token is `(T`).
+    """
+    order: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for span in spans:
+        key = _decl_key(lines, span, qualified=qualified, profile=profile)
+        if key in seen:
+            continue
+        seen.add(key)
+        order.append((key, qualified.get(span.start_line, span.name)))
+    out: dict[str, Finding] = {}
+    at = 0
+    for finding in findings:
+        while at < len(order) and order[at][1] != finding.decl:
+            at += 1
+        if at >= len(order):
+            break
+        out[order[at][0]] = finding
+        at += 1
+    return out
+
+
 def finding_verdict(finding: Finding, mode: str) -> tuple[str, str]:
     """Reconstruct `(verdict, cause)` for one `Finding`.
 
@@ -430,6 +565,12 @@ _LEAN_FILL_TACTIC = "simp_all"
 _LEAN_FILL_TERM = "by simp"
 _ISA_PROOF_FILL = "by simp"
 _ISA_TERM_FILL = "0"
+# `admit` stands in for one tactic, so it is replaced by one tactic;
+# `Admitted`/`Abort` terminate the proof *instead of* `Qed`, so filling
+# one means supplying the missing script and then closing with `Qed` —
+# which is what a finished `prove` task leaves behind.
+_ROCQ_TACTIC_FILL = "easy"
+_ROCQ_CLOSE_FILL = "easy.\nQed"
 
 
 def _fill_text(
@@ -438,6 +579,8 @@ def _fill_text(
     """A plausible replacement for one placeholder token."""
     if corpus.profile is ISABELLE:
         return _ISA_TERM_FILL if token == "undefined" else _ISA_PROOF_FILL
+    if corpus.profile is ROCQ:
+        return _ROCQ_TACTIC_FILL if token == "admit" else _ROCQ_CLOSE_FILL
     before = span_text[:tok_at]
     last_assign = before.rfind(":=")
     last_by = max(
@@ -994,7 +1137,9 @@ def measure_file(  # noqa: PLR0915 — one linear pipeline; splitting hurts
 
     head = s.head()
     _, findings = compare_declarations(text, head, profile=profile)
-    by_decl = {f.decl: f for f in findings}
+    by_decl = findings_by_key(
+        findings, spans, lines, qualified=qualified, profile=profile
+    )
     modes = {
         keys[sp.start_line]: comparison_mode(sp, blanked_text, profile)
         for sp in spans
@@ -1021,13 +1166,13 @@ def measure_file(  # noqa: PLR0915 — one linear pipeline; splitting hurts
                 if f.head_statement is not None else None,
                 **e.detail,
             })
-    for f in findings:
-        if f.decl not in edited:
-            mode = modes.get(f.decl, "")
+    for key, f in by_decl.items():
+        if key not in edited:
+            mode = modes.get(key, "")
             verdict, cause = finding_verdict(f, mode)
             rows.append({
                 "file": path, "kind": kind, "row": "collateral",
-                "decl": f.decl, "mode": mode, "verdict": verdict,
+                "decl": key, "mode": mode, "verdict": verdict,
                 "cause": cause,
             })
 
@@ -1041,7 +1186,9 @@ def measure_file(  # noqa: PLR0915 — one linear pipeline; splitting hurts
             if solo is None:
                 continue
             _, solo_findings = compare_declarations(text, solo, profile=profile)
-            solo_f = {f.decl: f for f in solo_findings}.get(e.decl)
+            solo_f = findings_by_key(
+                solo_findings, spans, lines, qualified=qualified, profile=profile
+            ).get(e.decl)
             mode = modes.get(e.decl, "")
             batched = (
                 finding_verdict(by_decl[e.decl], mode)
