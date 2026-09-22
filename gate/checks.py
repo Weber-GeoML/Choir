@@ -57,18 +57,23 @@ CHECKS: dict[str, CheckClass] = {
     # blueprint publishes *statements with placeholder bodies*, and per the
     # 2026-06-18 decision shared definitions are authored centrally and
     # complete, then merely *referenced* by `prove` tasks. So the numbers
-    # that decide this are proof-placeholder fills, measured over whole
-    # corpora (1843 Isabelle2025-2 theories, 4918 lean4 library files):
+    # that decide this are proof-placeholder fills, measured by
+    # `scripts/measure_statement_immutability.py` over whole corpora: 1,843
+    # Isabelle2025-2 theories; 7,403 lean4 files, being three installed
+    # toolchains' copies of Lean core; 840 rocq files from Corelib, the
+    # standard library and math-comp.
     #
-    #   proof-placeholder fill   isabelle 6/114 = 5.26%   lean4 n=0
-    #   golf (proof rewrite)     isabelle 3.51%           lean4 0.26%
-    #   helper before next decl  0 in 235,318 gaps, both corpora
-    #   helper elsewhere/gap     isabelle 1.06%           lean4 0.013%
+    #   proof-placeholder fill   isabelle 4.22%   lean4 0/57    rocq 12/23
+    #   golf (proof rewrite)     isabelle 0.303%  lean4 0%      rocq 0.264%
+    #   helper before next decl  0 in 370,000 gaps, all three corpora
+    #   helper elsewhere/gap     isabelle 1.05%   lean4 0.013%  rocq 4.66%
     #
-    # All six isabelle blocks are anonymous declarations sharing one
+    # The isabelle fill blocks are anonymous declarations sharing one
     # statement in tutorial/example files — genuinely ambiguous, not a
-    # defect. lean4's n=0 is a corpus limit (its library leaves no sorried
-    # theorems), and lean4's other rates are measured and tiny.
+    # defect. lean4's n=57 and rocq's n=23 are corpus limits rather than
+    # results, since neither library leaves placeholder proofs behind in
+    # quantity. rocq's helper-insertion rate is what keeps it advisory
+    # (`PROVER_OVERRIDES`).
     #
     # What makes a residual rate acceptable at all is that a false block is
     # not a wedge: a blocked worker says so in a comment and the
@@ -169,19 +174,21 @@ PROVER_OVERRIDES: dict[str, dict[str, CheckClass]] = {
     # a failed PR for the full reasoning and the playbook mitigation.
     "lean4": {"statement-equiv": CheckClass.ADVISORY},
     # `statement-immutability` blocks on lean4 and isabelle and reports only
-    # on rocq. That is not a judgement about rocq's importance — closer to
-    # the opposite. Rocq is the one prover whose false-block rate is
-    # entirely UNMEASURED: the corpus sweep that decided this promotion had
-    # 1843 Isabelle theories and 4918 lean4 files to work with and no rocq
-    # corpus or toolchain at all. It is also structurally the worst case,
-    # carrying the largest whole-span-compared population — the mode where
-    # an over-attributed boundary blocks 100% of the time rather than
-    # probabilistically.
+    # on rocq, because rocq is the one prover whose measured false-block rate
+    # is too high to block on: 4.66% of inter-declaration gaps, against
+    # isabelle's 1.05% and lean4's 0.013%.
     #
-    # Promoting it on two other provers' numbers would repeat an
-    # inconsistency a review already caught here once: refusing to promote
-    # lean4 over a false block, then shipping that same block on the two
-    # provers that had no equivalent guard. Measure rocq, then promote rocq.
+    # Rocq is structurally the worst case, carrying the largest
+    # whole-span-compared population (`definition_keywords` is everything
+    # except the theorem tokens) — the mode where an over-attributed
+    # boundary blocks 100% of the time rather than probabilistically. 98.7%
+    # of the blocks are that one mechanism: a helper inserted at the
+    # earliest legal top-level position lands inside the preceding
+    # `Definition`/`Canonical`/`HB.instance` span. Inserted after the
+    # preceding span's end it is 0 in 41,578, so the cause is positional,
+    # not a defect in the comparison. Narrowing rocq's trailing-span
+    # attribution is what would move it; golf alone is already at 0.264%
+    # and would be promotable on its own numbers.
     "rocq": {"statement-immutability": CheckClass.ADVISORY},
 }
 """Per-prover relaxations of `CHECKS`, keyed by prover id then check name.
