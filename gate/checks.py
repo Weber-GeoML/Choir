@@ -41,23 +41,19 @@ CHECKS: dict[str, CheckClass] = {
     # untouched. Blocking on lean4 and isabelle; ADVISORY on rocq
     # (`PROVER_OVERRIDES`).
     #
-    # It reached that state the hard way. The first implementation borrowed
-    # `gate/verify/style.py`'s `find_decl_spans` — an enumeration primitive
-    # built for the advisory *length* audit — and false-blocked ordinary
-    # code: `@[simp]`/`private`/`noncomputable`-prefixed declarations, files
-    # with two anonymous `example`s or two same-named decls in different
-    # namespaces, and equation-style `def`s. Two promotions were reverted on
-    # that basis before the enumeration was rebuilt (see
-    # `gate/provers/decl_syntax.py`, one prefix-aware scanner) and the
-    # residual rate was measured rather than argued.
+    # Declarations are enumerated by `gate/provers/decl_syntax.py`, one
+    # prefix-aware scanner, rather than by `gate/verify/style.py`'s
+    # `find_decl_spans`: that primitive is built for the advisory *length*
+    # audit and over-attributes on prefixed declarations, on files with two
+    # anonymous `example`s or two same-named decls in different namespaces,
+    # and on equation-style `def`s.
     #
-    # Promoted on measurement, after two promotions that were justified
-    # afterwards and reverted. The governing shape is what a `prove` task
-    # actually does — fill a placeholder proof — because per spec D2 a
-    # blueprint publishes *statements with placeholder bodies*, and per the
-    # 2026-06-18 decision shared definitions are authored centrally and
-    # complete, then merely *referenced* by `prove` tasks. So the numbers
-    # that decide this are proof-placeholder fills, measured by
+    # Blocking rests on a measured false-block rate. The governing shape is
+    # what a `prove` task actually does — fill a placeholder proof — because
+    # per spec D2 a blueprint publishes *statements with placeholder
+    # bodies*, and shared definitions are authored centrally and complete,
+    # then merely *referenced* by `prove` tasks. So the numbers that decide
+    # this are proof-placeholder fills, measured by
     # `scripts/measure_statement_immutability.py` over whole corpora: 1,843
     # Isabelle2025-2 theories; 7,403 lean4 files, being three installed
     # toolchains' copies of Lean core; 840 rocq files from Corelib, the

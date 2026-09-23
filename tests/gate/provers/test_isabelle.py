@@ -176,6 +176,8 @@ def test_isabelle_trust_patterns() -> None:
     assert ISABELLE.trust_patterns == (
         ("axiomatization", r"^\s*axiomatization\b"),
         ("oracle", r"^\s*oracle\b"),
+        ("setup", r"^\s*(?:local_)?setup\b"),
+        ("ML", r"^\s*ML(?:_file)?\b"),
     )
 
 

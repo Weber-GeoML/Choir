@@ -1872,11 +1872,13 @@ def test_an_unspecified_isabelle_definition_is_counted_by_no_gate_check() -> Non
     unspecified = 'definition f :: nat where "f = undefined"\n'
     # Not a sorry.
     assert count_sorries(unspecified, "F.thy", profile=ISABELLE) == []
-    # Not a trust pattern either — `axiomatization` and `oracle` are the
-    # only two isabelle has, and neither matches.
+    # Not a trust pattern either — none of isabelle's match a body that
+    # is merely unspecified.
     assert [name for name, _ in ISABELLE.trust_patterns] == [
         "axiomatization",
         "oracle",
+        "setup",
+        "ML",
     ]
     assert all(
         re.search(pattern, unspecified, re.MULTILINE) is None

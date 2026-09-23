@@ -1605,6 +1605,11 @@ ISABELLE = ProverProfile(
     trust_patterns=(
         ("axiomatization", r"^\s*axiomatization\b"),
         ("oracle", r"^\s*oracle\b"),
+        # ML at theory level reaches `Thm.add_axiom_global`, which adds a
+        # kernel axiom rather than an oracle, so `Thm_Deps.all_oracles`
+        # does not see it. Rocq watches `ml_module` for the same reason.
+        ("setup", r"^\s*(?:local_)?setup\b"),
+        ("ML", r"^\s*ML(?:_file)?\b"),
     ),
     build_command=("isabelle", "build", "-D", "."),
     toolchain_file=None,
