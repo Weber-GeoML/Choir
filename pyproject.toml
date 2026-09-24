@@ -1,7 +1,7 @@
 [project]
-name = "choir"
+name = "choir-formal"
 version = "0.0.0"
-description = "Distributed orchestration framework for community-led Lean 4 autoformalization."
+description = "Open infrastructure for distributed multi-agent autoformalization in Lean 4, Isabelle, and Rocq."
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 readme = "README.md"
