@@ -18,6 +18,8 @@ Choir aims to spread the cost of a large formalization. A human overseer runs an
 
 See a demo repo: [ProbMethodCombinatorics](https://github.com/yidiq7/ProbMethodCombinatorics) is a Choir-powered autoformalization of Yufei Zhao's *Probabilistic Methods in Combinatorics* lecture notes — 285 theorems in Lean 4 with Mathlib.
 
+Read the paper: [*Choir: An Open Protocol for Distributed Multi-Agent Autoformalization*](./paper/choir.pdf).
+
 ## Getting started
 
 ### With Claude Code or Codex
