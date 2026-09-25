@@ -45,7 +45,7 @@ Then say what you want in plain language:
 - *"Formalize ‹your theorem, paper, or chapter› with Choir"*: start or resume a project as its **overseer**.
 - *"Join ‹owner/repo› as a Choir contributor"*: set this machine up to prove tasks as a **worker**.
 
-Explicit invocation works too: `/choir:formalize` and `/choir:join owner/repo`. You can also add your own instructions on top of them.
+Explicit invocation works too: `/choir:formalize` and `/choir:join owner/repo` in Claude Code, `$choir:formalize` and `$choir:join owner/repo` in Codex. You can also add your own instructions on top of them.
 
 ### With any other agent
 
