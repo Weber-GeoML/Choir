@@ -96,21 +96,9 @@ convenient path, never as a boundary. The boundary is that
 `merge-override` is the overseer's to run, and the orchestrator is told so
 directly (`ORCHESTRATOR.md` § Automation levels).
 
-**GitHub Copilot CLI** has a command allowlist too, but a coarser one.
-`copilot --allow-tool='shell(choir:*)'` grants every `choir` subcommand
-without a prompt: `:*` matches on the command stem, so it covers the
-toolkit and nothing named `choirtool`.
-
-A deny rule cannot carve `merge-override` back out. Outside `git` and
-`gh`, which Copilot matches per first-level subcommand, `--deny-tool`
-matches the entire command line verbatim, so
-`--deny-tool='shell(choir orch merge-override)'` never fires against
-`choir orch --repo org/project merge-override 12 --reason "…"`, and a
-rule written out in full stops matching once a flag moves. Denials do
-outrank every allow rule, including `--allow-all-tools`, so a verbatim
-rule is worth setting where the invocation is fixed; treat it as the
-same guardrail the Claude Code entries are, not a boundary.
-`/permissions` manages the same grants in-session.
+**GitHub Copilot CLI**: `copilot --allow-tool='shell(choir:*)'` allows all
+`choir` subcommands, including `merge-override`, so keep approvals enabled
+if that is too broad.
 
 **Harnesses with sandboxing and approvals** (Codex: `--sandbox
 read-only | workspace-write | danger-full-access`, plus its approval

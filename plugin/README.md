@@ -50,8 +50,7 @@ name — plus one command for when you do:
   untouched.
 
 Codex users: this plugin does not bundle `/choir:purge` as a Codex command —
-run `choir purge` directly instead. Claude Code and GitHub Copilot CLI both
-register it.
+run `choir purge` directly instead.
 
 ## What it needs
 
