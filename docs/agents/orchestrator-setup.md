@@ -44,6 +44,7 @@ The setup is the same one contributors follow —
 ```bash
 claude mcp add lean-lsp uvx lean-lsp-mcp      # Claude Code
 codex mcp add lean-lsp -- uvx lean-lsp-mcp    # Codex
+copilot mcp add lean-lsp -- uvx lean-lsp-mcp  # GitHub Copilot CLI
 ```
 
 ### Permissions
@@ -94,6 +95,10 @@ you can, and read the result as a guardrail against an agent taking the
 convenient path, never as a boundary. The boundary is that
 `merge-override` is the overseer's to run, and the orchestrator is told so
 directly (`ORCHESTRATOR.md` § Automation levels).
+
+**GitHub Copilot CLI**: `copilot --allow-tool='shell(choir:*)'` allows all
+`choir` subcommands, including `merge-override`, so keep approvals enabled
+if that is too broad.
 
 **Harnesses with sandboxing and approvals** (Codex: `--sandbox
 read-only | workspace-write | danger-full-access`, plus its approval

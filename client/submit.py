@@ -8,8 +8,8 @@ agent) does the work, `choir submit`:
 3. Pushes the branch (no-op if already up-to-date).
 4. Opens a PR with `Closes #N` in the body — *unless one already exists
    for this branch*, in which case it reuses the existing PR. This lets
-   agents (Claude Code, Codex) that prefer to open their own PRs work
-   without colliding with Choir's submit step.
+   agents (Claude Code, GitHub Copilot CLI, Codex) that prefer to open
+   their own PRs work without colliding with Choir's submit step.
 5. Posts a "submitted in <pr-url>" comment on the parent issue.
 
 Pure helpers (`pr_body`, `pr_title`) are unit-tested; the subprocess

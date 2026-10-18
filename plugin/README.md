@@ -1,4 +1,4 @@
-# Choir (Claude Code / Codex plugin)
+# Choir (Claude Code / GitHub Copilot CLI / Codex plugin)
 
 Community-led formalization in kernel-checked proof assistants — Lean 4,
 Isabelle, and Rocq. This plugin gives your agent two entry points into
@@ -12,6 +12,13 @@ Isabelle, and Rocq. This plugin gives your agent two entry points into
 ```text
 /plugin marketplace add Weber-GeoML/Choir
 /plugin install choir@choir
+```
+
+**GitHub Copilot CLI** (same two lines in-session, or from your shell)
+
+```text
+copilot plugin marketplace add Weber-GeoML/Choir
+copilot plugin install choir@choir
 ```
 
 **Codex** (from your shell)

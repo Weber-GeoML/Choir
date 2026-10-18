@@ -38,6 +38,9 @@ server:
   [README](https://github.com/oOo0oOo/lean-lsp-mcp).
 - **Codex**: `codex mcp add lean-lsp -- uvx lean-lsp-mcp` (note the `--`
   before the command), then set `"search": "lean-lsp-mcp"`.
+- **GitHub Copilot CLI**: `copilot mcp add lean-lsp -- uvx lean-lsp-mcp` (the
+  `--` is required there too), then set `"search": "lean-lsp-mcp"`. It writes
+  to `~/.copilot/mcp-config.json`; `/mcp` manages it in-session.
 - **Gemini CLI**: via
   [`lean4-skills`](https://github.com/cameronfreer/lean4-skills), which is
   host-agnostic.

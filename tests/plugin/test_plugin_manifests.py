@@ -1,13 +1,15 @@
-"""Structural checks for the agent plugin (Claude Code + Codex).
+"""Structural checks for the agent plugin (Claude Code + Copilot CLI + Codex).
 
-One shared plugin/ directory serves both harnesses through harness-specific
-manifests (.claude-plugin/ + .codex-plugin/, and the two root marketplace
-files). These tests keep the manifests parseable and version-synced, the
-plugin version explicit (an omitted version makes every repo commit a
-plugin update for installed users), and every repo path the skills
-reference existing, so a future rename breaks this suite, not a user's
-onboarding.
+One shared plugin/ directory serves all three harnesses through
+harness-specific manifests (.claude-plugin/, .github/plugin/ and
+.codex-plugin/, and the two root marketplace files). These tests keep the
+manifests parseable and version-synced, the plugin version explicit (an
+omitted version makes every repo commit a plugin update for installed users),
+and every repo path the skills reference existing, so a future rename breaks
+this suite, not a user's onboarding.
 """
+
+from __future__ import annotations
 
 import json
 import re
@@ -21,6 +23,7 @@ CODEX_MARKETPLACE = REPO_ROOT / ".agents" / "plugins" / "marketplace.json"
 PLUGIN_DIR = REPO_ROOT / "plugin"
 PLUGIN_MANIFEST = PLUGIN_DIR / ".claude-plugin" / "plugin.json"
 CODEX_PLUGIN_MANIFEST = PLUGIN_DIR / ".codex-plugin" / "plugin.json"
+COPILOT_PLUGIN_MANIFEST = PLUGIN_DIR / ".github" / "plugin" / "plugin.json"
 
 SKILLS_DIR = PLUGIN_DIR / "skills"
 FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
@@ -61,20 +64,30 @@ def test_codex_marketplace_source_resolves_to_plugin_dir() -> None:
     assert source.is_dir()
 
 
-def test_codex_manifest_mirrors_claude_manifest() -> None:
-    # One plugin, two harness manifests: same identity, same version.
-    # A lone bump would ship different plugin versions to the two harnesses.
+def test_harness_manifests_mirror_claude_manifest() -> None:
+    # One plugin, three harness manifests: same identity, same version.
+    # A lone bump would ship a different version to each harness.
     claude = json.loads(PLUGIN_MANIFEST.read_text(encoding="utf-8"))
-    codex = json.loads(CODEX_PLUGIN_MANIFEST.read_text(encoding="utf-8"))
-    assert codex["name"] == claude["name"]
-    assert re.fullmatch(r"\d+\.\d+\.\d+", codex["version"])
-    assert codex["version"] == claude["version"]
-    assert codex["description"] == claude["description"]
+    for manifest_path in (CODEX_PLUGIN_MANIFEST, COPILOT_PLUGIN_MANIFEST):
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        assert manifest["name"] == claude["name"], manifest_path
+        assert re.fullmatch(r"\d+\.\d+\.\d+", manifest["version"]), manifest_path
+        assert manifest["version"] == claude["version"], manifest_path
+        assert manifest["description"] == claude["description"], manifest_path
+
+
+def test_copilot_component_paths_exist() -> None:
+    # Copilot's manifest names the skills and commands directories outright
+    # instead of relying on discovery defaults, so a rename breaks here
+    # rather than shipping a plugin with nothing in it.
+    manifest = json.loads(COPILOT_PLUGIN_MANIFEST.read_text(encoding="utf-8"))
+    for field in ("skills", "commands"):
+        assert (PLUGIN_DIR / manifest[field]).is_dir(), f"{field}: {manifest[field]}"
 
 
 def test_skill_frontmatter_name_matches_directory() -> None:
-    # Codex requires `name`; Claude Code derives it from the directory.
-    # Keeping them equal keeps one skill identity across both harnesses.
+    # Codex and Copilot CLI require `name`; Claude Code derives it from the
+    # directory. Keeping them equal keeps one skill identity across all three.
     for skill_md in _skill_files():
         fm = _frontmatter(skill_md)
         assert fm.get("name") == skill_md.parent.name, f"{skill_md}"
@@ -88,6 +101,7 @@ def test_public_copy_follows_public_pitch_rule() -> None:
         CODEX_MARKETPLACE,
         PLUGIN_MANIFEST,
         CODEX_PLUGIN_MANIFEST,
+        COPILOT_PLUGIN_MANIFEST,
         REPO_ROOT / "README.md",
         *_skill_files(),
     ]
